@@ -1,0 +1,307 @@
+---
+title: "data cleaning"
+author: "Clint McKenna"
+date: "March 6th, 2020"
+output: html_document
+---
+
+## data prep
+```{r}
+# load packages
+library(readxl)
+library(tidyverse)
+
+# custom functions
+# dplyr select
+select <- dplyr::select
+
+# read in data seperately
+dat1 <- read_excel('../data/raw/pilot1/6kng4bwx (accessed 2020-02-19).xlsx')
+dat2 <- read_excel('../data/raw/pilot2/73pwj194 (accessed 2020-02-20).xlsx')
+
+# combine
+dat <- bind_rows(dat1, dat2)
+
+# create workerID var
+dat <- dat %>%
+  mutate(workerId = participant.label)
+
+
+# remove columns related to other lab studies
+dat <- dat %>%
+  select(-starts_with('contingency'))
+  
+
+# remove clutter
+rm(dat1, dat2)
+
+```
+
+
+## select only vars we are interested in using
+```{r}
+
+dat <- dat %>%
+  transmute(
+    subject = 1:nrow(.),
+    role = impeachNet.1.player.p,
+    party = impeachNet.1.player.party,
+    condition = impeachNet.1.player.condition,
+    n1 = impeachNet.1.player.n1,
+    n2 = impeachNet.1.player.n2,
+    n3 = impeachNet.1.player.n3,
+    n4 = impeachNet.1.player.n4,
+    # n1Party = impeachNet.1.player.n1Party,
+    # n2Party = impeachNet.1.player.n2Party,
+    # n3Party = impeachNet.1.player.n3Party,
+    # n4Party = impeachNet.1.player.n4Party,
+    r1_response = impeachNet.1.player.response,
+    r1_fact1 = impeachNet.1.player.fact1,
+    r1_fact2 = impeachNet.1.player.fact2,
+    r1_fact3 = impeachNet.1.player.fact3,
+    r1_fact4 = impeachNet.1.player.fact4,
+    r1_fact5 = impeachNet.1.player.fact5,
+    r2_response = impeachNet.2.player.response,
+    r2_fact1 = impeachNet.2.player.fact1,
+    r2_fact2 = impeachNet.2.player.fact2,
+    r2_fact3 = impeachNet.2.player.fact3,
+    r2_fact4 = impeachNet.2.player.fact4,
+    r2_fact5 = impeachNet.2.player.fact5,
+    r3_response = impeachNet.3.player.response,
+    r3_fact1 = impeachNet.3.player.fact1,
+    r3_fact2 = impeachNet.3.player.fact2,
+    r3_fact3 = impeachNet.3.player.fact3,
+    r3_fact4 = impeachNet.3.player.fact4,
+    r3_fact5 = impeachNet.3.player.fact5,
+    r4_response = impeachNet.4.player.response,
+    r4_fact1 = impeachNet.4.player.fact1,
+    r4_fact2 = impeachNet.4.player.fact2,
+    r4_fact3 = impeachNet.4.player.fact3,
+    r4_fact4 = impeachNet.4.player.fact4,
+    r4_fact5 = impeachNet.4.player.fact5,
+    impeachKnowledge1 = impeachNet_outro.1.player.impeachKnowledge1,
+    impeachKnowledge2 = impeachNet_outro.1.player.impeachKnowledge2,
+    impeachKnowledge3 = impeachNet_outro.1.player.impeachKnowledge3,
+    impeachKnowledge4 = impeachNet_outro.1.player.impeachKnowledge4,
+    impeachKnowledge5 = impeachNet_outro.1.player.impeachKnowledge5,
+    impeachKnowledge6 = impeachNet_outro.1.player.impeachKnowledge6,
+    impeachKnowledge7 = impeachNet_outro.1.player.impeachKnowledge7,
+    impeachKnowledge8 = impeachNet_outro.1.player.impeachKnowledge8,
+    impeachKnowledge9 = impeachNet_outro.1.player.impeachKnowledge9,
+    impeachKnowledge10 = impeachNet_outro.1.player.impeachKnowledge10,
+    age = impeachNet_outro.1.player.age,
+    gender = impeachNet_outro.1.player.gender,
+    feedback = impeachNet_outro.1.player.studyFeedback)
+
+```
+
+
+## generate edgelist
+```{r}
+
+# select vars
+edgelist <- dat %>%
+  select(subject, condition, sender = role, n1, n2, n3, n4)
+
+# reshapre wide to long
+edgelist <- edgelist %>%
+  gather(neighbor, value = receiver, c(n1, n2, n3, n4)) %>%
+  select(sender, receiver, everything())
+
+```
+
+
+## score factual information
+```{r}
+
+# round scores
+dat <- dat %>%
+  mutate(
+    r1_fact101 = case_when(
+      r1_fact1 == 1 ~ 1,
+      r1_fact1 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r1_fact201 = case_when(
+      r1_fact2 == 1 ~ 1,
+      r1_fact2 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r1_fact301 = case_when(
+      r1_fact3 == 1 ~ 0,
+      r1_fact3 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r1_fact401 = case_when(
+      r1_fact4 == 1 ~ 0,
+      r1_fact4 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r1_fact501 = case_when(
+      r1_fact5 == 1 ~ 0,
+      r1_fact5 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r2_fact101 = case_when(
+      r1_fact1 == 1 ~ 1,
+      r1_fact1 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r2_fact201 = case_when(
+      r1_fact2 == 1 ~ 1,
+      r1_fact2 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r2_fact301 = case_when(
+      r1_fact3 == 1 ~ 0,
+      r1_fact3 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r2_fact401 = case_when(
+      r1_fact4 == 1 ~ 0,
+      r1_fact4 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r2_fact501 = case_when(
+      r1_fact5 == 1 ~ 0,
+      r1_fact5 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r3_fact101 = case_when(
+      r1_fact1 == 1 ~ 1,
+      r1_fact1 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r3_fact201 = case_when(
+      r1_fact2 == 1 ~ 1,
+      r1_fact2 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r3_fact301 = case_when(
+      r1_fact3 == 1 ~ 0,
+      r1_fact3 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r3_fact401 = case_when(
+      r1_fact4 == 1 ~ 0,
+      r1_fact4 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r3_fact501 = case_when(
+      r1_fact5 == 1 ~ 0,
+      r1_fact5 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r4_fact101 = case_when(
+      r1_fact1 == 1 ~ 1,
+      r1_fact1 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r4_fact201 = case_when(
+      r1_fact2 == 1 ~ 1,
+      r1_fact2 == 0 ~ 0,
+      TRUE ~ NA_real_),
+    r4_fact301 = case_when(
+      r1_fact3 == 1 ~ 0,
+      r1_fact3 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r4_fact401 = case_when(
+      r1_fact4 == 1 ~ 0,
+      r1_fact4 == 0 ~ 1,
+      TRUE ~ NA_real_),
+    r4_fact501 = case_when(
+      r1_fact5 == 1 ~ 0,
+      r1_fact5 == 0 ~ 1,
+      TRUE ~ NA_real_))
+    
+# calculate sum scores
+dat <- dat %>%
+  mutate(
+    r1_score = r1_fact101 + r1_fact201 + r1_fact301 + r1_fact401 + r1_fact501,
+    r2_score = r2_fact101 + r2_fact201 + r2_fact301 + r2_fact401 + r2_fact501,
+    r3_score = r3_fact101 + r3_fact201 + r3_fact301 + r3_fact401 + r3_fact501,
+    r4_score = r4_fact101 + r4_fact201 + r4_fact301 + r4_fact401 + r4_fact501)
+  
+    
+    
+```
+
+
+## score impeachment knowledge
+```{r}
+# score each item
+dat <- dat %>%
+  mutate(
+    impeachKnowledge101 = case_when(
+      impeachKnowledge1 == 'Three' ~ 1,
+      is.na(impeachKnowledge1) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge201 = case_when(
+      impeachKnowledge2 == 'No' ~ 1,
+      is.na(impeachKnowledge2) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge301 = case_when(
+      impeachKnowledge3 == 'The House of Representatives' ~ 1,
+      is.na(impeachKnowledge3) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge401 = case_when(
+      impeachKnowledge4 == 'The Senate holds a trial regarding the articles of impeachment' ~ 1,
+      is.na(impeachKnowledge4) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge501 = case_when(
+      impeachKnowledge5 == 'The Chief Justice of the United States' ~ 1,
+      is.na(impeachKnowledge5) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge601 = case_when(
+      impeachKnowledge6 == 'Two-thirds' ~ 1,
+      is.na(impeachKnowledge6) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge701 = case_when(
+      impeachKnowledge7 == 'Vice President, Speaker of the House, President pro tempore of the Senate, Secretary of State, Secretary of the Treasury' ~ 1,
+      is.na(impeachKnowledge7) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge801 = case_when(
+      impeachKnowledge8 == 'Twenty' ~ 1,
+      is.na(impeachKnowledge8) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge901 = case_when(
+      impeachKnowledge9 == 'Article I of the Constitution' ~ 1,
+      is.na(impeachKnowledge9) ~ NA_real_,
+      TRUE ~ 0),
+    impeachKnowledge1001 = case_when(
+      impeachKnowledge10 == 'There is no limit' ~ 1,
+      is.na(impeachKnowledge10) ~ NA_real_,
+      TRUE ~ 0)) 
+
+# calculate sum score
+dat <- dat %>%
+  mutate(
+    impeachKnowledge = impeachKnowledge101 + impeachKnowledge201 + impeachKnowledge301 + impeachKnowledge401 + impeachKnowledge501 + impeachKnowledge601 + impeachKnowledge701 + impeachKnowledge801 + impeachKnowledge901 + impeachKnowledge1001)
+
+```
+
+
+## reshape data from wide to long, so vars have a row for each round
+```{r}
+
+# convert to long format
+datRound <- dat %>%
+  select(subject, 
+         r1_response, r2_response, r3_response, r4_response,
+         r1_score, r2_score, r3_score, r4_score) %>%
+  gather(round, value = response, ends_with('_response')) %>%
+  gather(roundScore, value = score, ends_with('_score')) %>%
+  select(-roundScore)
+  
+# sub out round column text
+datRound$round <- gsub('[A-z]', '', datRound$round) %>%
+  as.numeric()
+
+
+
+```
+
+
+
+
+## clean up and export
+```{r}
+# select only vars of note
+dat <- dat %>%
+  select(subject, role, party, condition, 
+         n1, n2, n3, n4,
+         r1_score, r2_score, r3_score, r4_score,
+         impeachKnowledge, age, gender, feedback)
+
+# export
+write_csv(dat, '../data/data.csv')
+write_csv(datRound, '../data/rounds.csv')
+write_csv(edgelist, '../data/edgelist.csv')
+
+```
+
+
