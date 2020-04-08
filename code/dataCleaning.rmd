@@ -20,6 +20,11 @@ select <- dplyr::select
 toChar <- function(df){
   df %>% mutate_all(as.character)
 }
+# mode 
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
 
 # oTree data
 # search data directory for excel files for raw oTree data
@@ -43,8 +48,33 @@ dat <- dat %>%
   mutate(workerId = participant.label)
 
 
+
+# get turkprime data to examine those who completed HIT
+# search data directory for turkprime .csv files
+TPFiles <- dir(path = '../data/raw/turkprime',
+                      pattern = '*.csv',
+                      recursive = TRUE,
+                      full.names = TRUE)
+
+# join csv, mutating survey file number
+turkprime <- TPFiles %>%
+  map(read_csv) %>% 
+  imap(~ mutate(.x, survey = .y)) %>%
+  reduce(full_join)
+
+# replace survey number with D or R
+turkprime <- turkprime %>%
+  mutate(survey = TPFiles[turkprime$survey]) %>%
+  select(workerId = AmazonIdentifier, survey)
+turkprime$survey <- gsub('.*misinfo_', '', turkprime$survey)
+turkprime$survey <- gsub('[ [].*', '', turkprime$survey)
+
+# join with dat
+dat <- left_join(dat, turkprime, by = 'workerId')
+
+
 # remove clutter
-rm(datRaw, datFiles)
+rm(datRaw, datFiles, TPFiles, turkprime)
 
 ```
 
@@ -109,8 +139,8 @@ dat <- dat %>%
     robot = misinfoNet_outro.1.player.robot,
     honesty = misinfoNet_outro.1.player.honesty,
     workerId = workerId,
-    session = session.code)
-
+    session = session.code,
+    survey = survey)
 
 ```
 

@@ -38,7 +38,7 @@ edgelist$receiver <- gsub('Participant ', '', edgelist$receiver)
 
 # retrieve vertex scores from initial dataset
 vertexScores <- dat %>%
-  select(role, r1_correct, r2_correct, r3_correct, r4_correct, subject, session, condition2)
+  select(role, r1_correct, r2_correct, r3_correct, r4_correct, subject, session, condition2, survey)
 
 # removing text from role in vertexScores
 vertexScores$role <- gsub('Participant ', '', vertexScores$role)
@@ -56,7 +56,8 @@ dV = data.frame(
   r1_correct = 0,
   subject = 0,
   session = NA,
-  condition2 = NA)
+  condition2 = NA,
+  survey = NA)
 
 # get unique session ids
 sessions <- edgelist$session %>% unique()
@@ -212,7 +213,7 @@ ggraph(currentNet, layout = 'circle') +
 ## patchwork each timepoint together
 ```{r}
 
-net1 <- netList[[7]]
+net1 <- netList[[6]]
 
 
 # baseline
@@ -222,7 +223,7 @@ pBaseline <- ggraph(net1, layout = 'circle') +
   geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 8, alpha = .75) +
   scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
   labs(
-    title = V(net1)$session,
+    title = getMode(V(net1)$survey),
     subtitle = V(net1)$condition2
     ) +
   theme_graph() +
