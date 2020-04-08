@@ -59,45 +59,145 @@ dV = data.frame(
   condition2 = NA)
 
 # get unique session ids
-
+sessions <- edgelist$session %>% unique()
 
 
 # now, make 8 network objects, one for each condition
 
-# guns_outrage, republicans ---------------------------------------
-# filter edgelist and vertexScores to this session
-edge1 <- edgelist %>% 
-  # filter(session == 'kv9ecle8') %>%
-  filter(session == 'ntsj19eg') %>%
-  select(sender, receiver, subject)
-vertex1 <- vertexScores %>% 
-  # filter(session == 'kv9ecle8')
-  filter(session == 'ntsj19eg')
+# function to iterate through session vector
+getNet <- function(x) {
+  
+  # get edgelist and vertex attributes for session
+  currentEdge <- edgelist %>% 
+    filter(session == x) %>%
+    select(sender, receiver, subject)
+  
+  currentVertex <- vertexScores %>% 
+    filter(session == x)
+  
+  # append data with misinfo node
+  currentEdge <- bind_rows(currentEdge, d)
+  currentVertex <- bind_rows(currentVertex, dV)
+  
+  # sort edgelist by sender
+  currentEdge <- currentEdge[order(currentEdge$sender),]
+  currentVertex <- currentVertex[order(currentVertex$role),]
+  
+  # create network object. non-directed
+  currentNet <- graph_from_data_frame(
+    currentEdge,
+    directed = FALSE,
+    vertices = currentVertex
+  )
+  
+  # output net object
+  return(currentNet)
+  
+}
 
-# append data with misinfo node
-edge1 <- bind_rows(edge1, d)
-vertex1 <- bind_rows(vertex1, dV)
+# get list of all network objects
+netList <- sessions %>%
+  map(~ getNet(.))
 
-# sort edgelist by sender
-edge1 <- edge1[order(edge1$sender),]
-vertex1 <- vertex1[order(vertex1$role),]
-
-# create network object. non-directed
-net1 <- graph_from_data_frame(
-  edge1,
-  directed = FALSE,
-  vertices = vertex1
-)
 
 ```
+
+
+
+## multiple plots
+```{r}
+
+
+
+
+
+plotNets <- function(x) {
+  
+  # define current network object
+  currentNet <- x
+  
+  
+  ggraph(nets, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_text(aes(label = names(V(currentNet)))) +
+    geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
+    scale_color_manual(values = c('red', 'light blue')) +
+    labs(
+      title = 'Baseline',
+      color = 'Misinformation Endorsed') +
+    theme_graph()
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+# define number of loops and plot list
+plotList <- list()
+nNet <- as.numeric(length(netList))
+
+# for loop to iterate through netList
+for (i in 1:nNet) {
+  
+  # define current network object
+  currentNet <- netList[[i]]
+  
+  # plot
+  plotList[[i]] <- ggraph(currentNet, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_text(aes(label = names(V(currentNet)))) +
+    geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
+    scale_color_manual(values = c('red', 'light blue')) +
+    labs(
+      title = 'Baseline',
+      color = 'Misinformation Endorsed') +
+    theme_graph()
+
+}  
+
+# Build multiplot panel (two columns)
+# 
+# pngname<-paste(output_path,"plot-name",".png",sep="")
+# png(pngname,width = 1000, height = 1000)
+# do.call(grid.arrange, c(ggcluster,list(ncol=2)))
+# dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ## plot with ggraph package
 ```{r}
 
-ggraph(net1, layout = 'circle') +
+currentNet <- netList[[2]]
+
+ggraph(currentNet, layout = 'circle') +
   geom_edge_link() +
-  geom_node_text(aes(label = names(V(net1)))) +
-  geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 10, alpha = .75) +
+  geom_node_text(aes(label = names(V(currentNet)))) +
+  geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
   scale_color_manual(values = c('red', 'light blue')) +
   labs(
     title = 'Baseline',
@@ -107,8 +207,14 @@ ggraph(net1, layout = 'circle') +
 
 ```
 
+
+
 ## patchwork each timepoint together
 ```{r}
+
+net1 <- netList[[7]]
+
+
 # baseline
 pBaseline <- ggraph(net1, layout = 'circle') +
   geom_edge_link() +
@@ -116,7 +222,9 @@ pBaseline <- ggraph(net1, layout = 'circle') +
   geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 8, alpha = .75) +
   scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
   labs(
-    title = 'Baseline') +
+    title = V(net1)$session,
+    subtitle = V(net1)$condition2
+    ) +
   theme_graph() +
   theme(legend.position = 'none') + 
   coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
