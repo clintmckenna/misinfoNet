@@ -1,0 +1,178 @@
+---
+title: "network"
+author: "Clint McKenna"
+date: "February 20th, 2020"
+output: html_document
+---
+
+## data prep
+```{r, message = FALSE}
+# load packages
+library(igraph)
+library(ggraph)
+library(patchwork)
+library(tidyverse)
+
+# custom functions
+# dplyr select
+select <- dplyr::select
+
+# read in data seperately
+dat <- read_csv('../data/data.csv')
+rounds <- read_csv('../data/rounds.csv')
+edgelist <- read_csv('../data/edgelist.csv')
+
+```
+
+
+## prepare network objects
+```{r}
+# for the next steps, we need to put sender/receiver first
+edgelist <- edgelist %>%
+  select(sender, receiver, subject, condition2, session)
+
+# for simplicity, remove 'Participant ' from edgelist text
+edgelist$sender <- gsub('Participant ', '', edgelist$sender)
+edgelist$receiver <- gsub('Participant ', '', edgelist$receiver)
+
+
+# retrieve vertex scores from initial dataset
+vertexScores <- dat %>%
+  select(role, r1_correct, r2_correct, r3_correct, r4_correct, subject, session, condition2)
+
+# removing text from role in vertexScores
+vertexScores$role <- gsub('Participant ', '', vertexScores$role)
+
+# set Participant D's data
+d <- data.frame(
+  sender = rep('D', 4),
+  receiver = c('B', 'C', 'E', 'F'),
+  subject = 0)
+dV = data.frame(
+  role = 'D',
+  r1_correct = 0,
+  r1_correct = 0,
+  r1_correct = 0,
+  r1_correct = 0,
+  subject = 0,
+  session = NA,
+  condition2 = NA)
+
+# get unique session ids
+
+
+
+# now, make 8 network objects, one for each condition
+
+# guns_outrage, republicans ---------------------------------------
+# filter edgelist and vertexScores to this session
+edge1 <- edgelist %>% 
+  # filter(session == 'kv9ecle8') %>%
+  filter(session == 'ntsj19eg') %>%
+  select(sender, receiver, subject)
+vertex1 <- vertexScores %>% 
+  # filter(session == 'kv9ecle8')
+  filter(session == 'ntsj19eg')
+
+# append data with misinfo node
+edge1 <- bind_rows(edge1, d)
+vertex1 <- bind_rows(vertex1, dV)
+
+# sort edgelist by sender
+edge1 <- edge1[order(edge1$sender),]
+vertex1 <- vertex1[order(vertex1$role),]
+
+# create network object. non-directed
+net1 <- graph_from_data_frame(
+  edge1,
+  directed = FALSE,
+  vertices = vertex1
+)
+
+```
+
+## plot with ggraph package
+```{r}
+
+ggraph(net1, layout = 'circle') +
+  geom_edge_link() +
+  geom_node_text(aes(label = names(V(net1)))) +
+  geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 10, alpha = .75) +
+  scale_color_manual(values = c('red', 'light blue')) +
+  labs(
+    title = 'Baseline',
+    color = 'Misinformation Endorsed') +
+  theme_graph()
+
+
+```
+
+## patchwork each timepoint together
+```{r}
+# baseline
+pBaseline <- ggraph(net1, layout = 'circle') +
+  geom_edge_link() +
+  geom_node_point(color = 'white', size = 10) +
+  geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 8, alpha = .75) +
+  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+  labs(
+    title = 'Baseline') +
+  theme_graph() +
+  theme(legend.position = 'none') + 
+  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+
+# update - round 1 (r2)
+p1 <- ggraph(net1, layout = 'circle') +
+  geom_edge_link() +
+  geom_node_point(color = 'white', size = 10) +
+  geom_node_point(aes(color = as.factor(V(net1)$r2_correct)), size = 8, alpha = .75) +
+  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+  labs(
+    title = 'Round 1') +
+  theme_graph() +
+  theme(legend.position = 'none') + 
+  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+
+# update - round 2 (r3)
+p2 <- ggraph(net1, layout = 'circle') +
+  geom_edge_link() +
+  geom_node_point(color = 'white', size = 10) +
+  geom_node_point(aes(color = as.factor(V(net1)$r3_correct)), size = 8, alpha = .75) +
+  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+  labs(
+    title = 'Round 2') +
+  theme_graph() +
+  theme(legend.position = 'none') + 
+  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+
+# update - round 3 (r4)
+p3 <- ggraph(net1, layout = 'circle') +
+  geom_edge_link() +
+  geom_node_point(color = 'white', size = 10) +
+  geom_node_point(aes(color = as.factor(V(net1)$r4_correct)), size = 8, alpha = .75) +
+  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+  labs(
+    title = 'Round 3',
+    color = 'Misinformation Endorsed',
+    caption = 'Grey nodes indicate NA values') +
+  theme_graph() + 
+  theme(legend.position = 'none') + 
+  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+
+
+# output both plots
+# pBaseline + p1 + p2 + p3 
+
+
+# can also save to file in same way as before (run these lines altogether)
+png('../figures/ggnet.png', units = 'in', width = 20, height = 5, res = 750)
+(pBaseline | p1 | p2 | p3)
+dev.off()
+
+```
+
+
+
+
+
+
