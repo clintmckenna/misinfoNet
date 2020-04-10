@@ -168,7 +168,7 @@ dat <- dat %>%
 # correct interpretation
 # create new dataframe for scoring
 rounds <- dat %>%
-  select(subject, condition, moralCondition, condition2,
+  select(subject, condition, moralCondition, condition2, survey,
          r1_answer, r2_answer, r3_answer, r4_answer,
          r1_response, r2_response, r3_response, r4_response,
          r1_mLog, r2_mLog, r3_mLog, r4_mLog) %>%
@@ -193,6 +193,15 @@ rounds <- rounds %>%
     answer == 1  & condition == 'gunsR'  ~ 1, 
     answer == 0  & condition == 'gunsR'  ~ 0, 
     TRUE ~ NA_real_))
+
+# congeniality conditions
+rounds <- rounds %>%
+  mutate(congenialMisinfo = case_when(
+    condition == 'guns' & survey == 'D' ~ 'uncongenial',
+    condition == 'gunsR' & survey == 'D' ~ 'congenial',
+    condition == 'gunsR' & survey == 'R' ~ 'uncongenial',
+    condition == 'guns' & survey == 'R' ~ 'congenial',
+    TRUE ~ NA_character_))
 
 # and for main dataset
 scores <- rounds %>% 
@@ -394,6 +403,72 @@ edgelist <- edgelist %>%
 
 ```
 
+
+## mouse logging var (new method)
+```{r}
+# select vars
+mLog <- dat %>%
+  select(subject, r1_mLog, r2_mLog, r3_mLog, r4_mLog)
+
+
+# empty list
+logList <- list()
+
+# for loop
+for (i in 1:as.numeric(nrow(mLog))) {
+  
+  # current subject
+  currentSub <- mLog[i,]
+  
+  # split mLog string 
+  splitLog <- str_split(currentSub$log, ';')
+  
+  # new dataframe with subject number and log
+  newDat <- data.frame(
+    subject = currentSub[1, 1],
+    log = splitLog[[1]])
+  
+  # remove 'cell' and ',cell' from log string
+  newDat$log <- gsub(',cell', '', newDat$log)
+  newDat$log <- gsub('cell', '', newDat$log)
+  
+  # remove 'start:' and 'end:' from string
+  newDat$log <- gsub('start:', '', newDat$log)
+  newDat$log <- gsub('end:', '', newDat$log)
+
+  # na omit
+  newDat$log[newDat$log == ''] <- NA
+  newDat <- na.omit(newDat)
+  
+  # split log columns: cell, start time, end time
+  newDat <- newDat %>%
+    separate(log, c('cell', 'start', 'end'), sep = ',')
+  
+  # save in list
+  logList[[i]] <-  data.frame(newDat)
+  
+  # remove clutter in each loop
+  rm(newDat, currentSub, splitLog)
+  
+}
+
+# combine into long dataframe
+mLogLong <- do.call('rbind', logList)
+
+# new vars for long list
+mLogLong <- mLogLong %>%
+  mutate(start = as.numeric(start),
+         end = as.numeric(end)) %>%
+  mutate(hoverTime = end - start)
+
+# rename mLog
+mLog <- mLogLong
+
+# remove clutter
+rm(mLogLong, logList)
+
+
+```
 
 
 ## clean up and export

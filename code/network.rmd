@@ -10,12 +10,18 @@ output: html_document
 # load packages
 library(igraph)
 library(ggraph)
+library(glue)
 library(patchwork)
 library(tidyverse)
 
 # custom functions
 # dplyr select
 select <- dplyr::select
+# mode 
+getMode <- function(v) {
+   uniqv <- unique(v)
+   uniqv[which.max(tabulate(match(v, uniqv)))]
+}
 
 # read in data seperately
 dat <- read_csv('../data/data.csv')
@@ -51,9 +57,9 @@ d <- data.frame(
 dV = data.frame(
   role = 'D',
   r1_correct = 0,
-  r1_correct = 0,
-  r1_correct = 0,
-  r1_correct = 0,
+  r2_correct = 0,
+  r3_correct = 0,
+  r4_correct = 0,
   subject = 0,
   session = NA,
   condition2 = NA,
@@ -78,7 +84,11 @@ getNet <- function(x) {
   
   # append data with misinfo node
   currentEdge <- bind_rows(currentEdge, d)
-  currentVertex <- bind_rows(currentVertex, dV)
+  currentVertex <- bind_rows(currentVertex, dV) %>%
+    mutate(r1_mcount = length(which(r1_correct == 0)),
+           r2_mcount = length(which(r2_correct == 0)),
+           r3_mcount = length(which(r3_correct == 0)),
+           r4_mcount = length(which(r4_correct == 0)))
   
   # sort edgelist by sender
   currentEdge <- currentEdge[order(currentEdge$sender),]
@@ -103,180 +113,85 @@ netList <- sessions %>%
 
 ```
 
-
-
-## multiple plots
-```{r}
-
-
-
-
-
-plotNets <- function(x) {
-  
-  # define current network object
-  currentNet <- x
-  
-  
-  ggraph(nets, layout = 'circle') +
-    geom_edge_link() +
-    geom_node_text(aes(label = names(V(currentNet)))) +
-    geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
-    scale_color_manual(values = c('red', 'light blue')) +
-    labs(
-      title = 'Baseline',
-      color = 'Misinformation Endorsed') +
-    theme_graph()
-  
-}
-
-
-
-
-
-
-
-
-
-
-
-# define number of loops and plot list
-plotList <- list()
-nNet <- as.numeric(length(netList))
-
-# for loop to iterate through netList
-for (i in 1:nNet) {
-  
-  # define current network object
-  currentNet <- netList[[i]]
-  
-  # plot
-  plotList[[i]] <- ggraph(currentNet, layout = 'circle') +
-    geom_edge_link() +
-    geom_node_text(aes(label = names(V(currentNet)))) +
-    geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
-    scale_color_manual(values = c('red', 'light blue')) +
-    labs(
-      title = 'Baseline',
-      color = 'Misinformation Endorsed') +
-    theme_graph()
-
-}  
-
-# Build multiplot panel (two columns)
-# 
-# pngname<-paste(output_path,"plot-name",".png",sep="")
-# png(pngname,width = 1000, height = 1000)
-# do.call(grid.arrange, c(ggcluster,list(ncol=2)))
-# dev.off()
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## plot with ggraph package
-```{r}
-
-currentNet <- netList[[2]]
-
-ggraph(currentNet, layout = 'circle') +
-  geom_edge_link() +
-  geom_node_text(aes(label = names(V(currentNet)))) +
-  geom_node_point(aes(color = as.factor(V(currentNet)$r1_correct)), size = 10, alpha = .75) +
-  scale_color_manual(values = c('red', 'light blue')) +
-  labs(
-    title = 'Baseline',
-    color = 'Misinformation Endorsed') +
-  theme_graph()
-
-
-```
-
-
-
 ## patchwork each timepoint together
 ```{r}
 
-net1 <- netList[[6]]
+for (i in seq_along(netList)) {
+
+  
+  net1 <- netList[[i]]
 
 
-# baseline
-pBaseline <- ggraph(net1, layout = 'circle') +
-  geom_edge_link() +
-  geom_node_point(color = 'white', size = 10) +
-  geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 8, alpha = .75) +
-  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
-  labs(
-    title = getMode(V(net1)$survey),
-    subtitle = V(net1)$condition2
-    ) +
-  theme_graph() +
-  theme(legend.position = 'none') + 
-  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+  # baseline
+  pBaseline <- ggraph(net1, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_point(color = 'white', size = 10) +
+    geom_node_point(aes(color = as.factor(V(net1)$r1_correct)), size = 8, alpha = .75) +
+    scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+    annotate('text', x = .085, y = .085, label = paste0(round(getMode(V(net1)$r1_mcount)/12, 3)*100, '%'), size = 15) +
+    labs(
+      title = getMode(V(net1)$survey),
+      subtitle = V(net1)$condition2
+      ) +
+    theme_graph() +
+    theme(legend.position = 'none') + 
+    coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+  
+  # update - round 1 (r2)
+  p1 <- ggraph(net1, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_point(color = 'white', size = 10) +
+    geom_node_point(aes(color = as.factor(V(net1)$r2_correct)), size = 8, alpha = .75) +
+    annotate('text', x = .085, y = .085, label = paste0(round(getMode(V(net1)$r2_mcount)/12, 3)*100, '%'), size = 15) +
+    scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+    labs(
+      title = 'Round 1') +
+    theme_graph() +
+    theme(legend.position = 'none') + 
+    coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+  
+  # update - round 2 (r3)
+  p2 <- ggraph(net1, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_point(color = 'white', size = 10) +
+    geom_node_point(aes(color = as.factor(V(net1)$r3_correct)), size = 8, alpha = .75) +
+    annotate('text', x = .085, y = .085, label = paste0(round(getMode(V(net1)$r3_mcount)/12, 3)*100, '%'), size = 15) +
+    scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+    labs(
+      title = 'Round 2') +
+    theme_graph() +
+    theme(legend.position = 'none') + 
+    coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+  
+  # update - round 3 (r4)
+  p3 <- ggraph(net1, layout = 'circle') +
+    geom_edge_link() +
+    geom_node_point(color = 'white', size = 10) +
+    geom_node_point(aes(color = as.factor(V(net1)$r4_correct)), size = 8, alpha = .75) +
+    annotate('text', x = .085, y = .085, label = paste0(round(getMode(V(net1)$r4_mcount)/12, 3)*100, '%'), size = 15) +
+    scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
+    labs(
+      title = 'Round 3',
+      color = 'Misinformation Endorsed',
+      caption = 'Grey nodes indicate NA values') +
+    theme_graph() + 
+    theme(legend.position = 'none') + 
+    coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
+  
+  
+  # output both plots
+  # pBaseline + p1 + p2 + p3 
+  
+  
+  # can also save to file in same way as before (run these lines altogether)
+  fileName <- glue('../figures/{i}.png')
+  
+  png(fileName, units = 'in', width = 20, height = 5.5, res = 750)
+  print((pBaseline | p1 | p2 | p3))
+  dev.off()
+  
+}
 
-# update - round 1 (r2)
-p1 <- ggraph(net1, layout = 'circle') +
-  geom_edge_link() +
-  geom_node_point(color = 'white', size = 10) +
-  geom_node_point(aes(color = as.factor(V(net1)$r2_correct)), size = 8, alpha = .75) +
-  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
-  labs(
-    title = 'Round 1') +
-  theme_graph() +
-  theme(legend.position = 'none') + 
-  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
-
-# update - round 2 (r3)
-p2 <- ggraph(net1, layout = 'circle') +
-  geom_edge_link() +
-  geom_node_point(color = 'white', size = 10) +
-  geom_node_point(aes(color = as.factor(V(net1)$r3_correct)), size = 8, alpha = .75) +
-  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
-  labs(
-    title = 'Round 2') +
-  theme_graph() +
-  theme(legend.position = 'none') + 
-  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
-
-# update - round 3 (r4)
-p3 <- ggraph(net1, layout = 'circle') +
-  geom_edge_link() +
-  geom_node_point(color = 'white', size = 10) +
-  geom_node_point(aes(color = as.factor(V(net1)$r4_correct)), size = 8, alpha = .75) +
-  scale_color_manual(values = c('red', '#3b5998'), na.value = 'light grey') +
-  labs(
-    title = 'Round 3',
-    color = 'Misinformation Endorsed',
-    caption = 'Grey nodes indicate NA values') +
-  theme_graph() + 
-  theme(legend.position = 'none') + 
-  coord_cartesian(xlim=c(-1.4,1.4), ylim=c(-1.4,1.4))
-
-
-# output both plots
-# pBaseline + p1 + p2 + p3 
-
-
-# can also save to file in same way as before (run these lines altogether)
-png('../figures/ggnet.png', units = 'in', width = 20, height = 5, res = 750)
-(pBaseline | p1 | p2 | p3)
-dev.off()
 
 ```
 

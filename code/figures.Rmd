@@ -1,0 +1,204 @@
+---
+title: "figures"
+author: "Clint McKenna"
+date: "4/8/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## data prep
+```{r, message = FALSE}
+# load packages
+library(tidyverse)
+
+# custom functions
+# dplyr select
+select <- dplyr::select
+
+# read in data seperately
+dat <- read_csv('../data/data.csv')
+rounds <- read_csv('../data/rounds.csv')
+edgelist <- read_csv('../data/edgelist.csv')
+
+```
+
+
+## ggplot scores by condition
+```{r}
+# make new variable that recodes 'correct' as 'misinfo endorsed'
+rounds <- rounds %>%
+  mutate(misinfo = 1 - correct)
+
+
+# make simple plot
+p <- rounds %>%
+  filter(!is.na(congenialMisinfo)) %>%
+  ggplot(., aes(x = round, y = misinfo, group = survey, color = survey, fill = survey)) +
+    geom_point(position = position_jitter(height = 0.05, width = 0.2), 
+               alpha = .7) +
+    stat_smooth(method = 'glm', 
+                formula = y ~ x, 
+                aes(fill = survey, alpha = .5),
+                alpha = 0.2, size = 1) +
+    scale_color_manual(values = c('#3b5998', 'red'), na.value = 'light grey') +
+    scale_fill_manual(values = c('#3b5998', 'red'), na.value = 'light grey') +
+    facet_grid(~ congenialMisinfo + moralCondition) +
+    theme_bw()
+
+
+# output p
+p
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Each point is a participant. Each individual has a point at each of the four time points. Jitter makes the points scatter a little bit, so you can see how the grouping of individual points looks like.
+
+We can also style the points a little more, like adjusting the size and transparency (alpha)
+
+```{r}
+p <- rounds %>%
+  ggplot(., aes(x = round, y = score, color = condition, group = condition)) +
+    geom_point(position = position_jitter(height = 0.05, width = 0.2),
+               size = 2.5,
+               alpha = .5) 
+p
+
+```
+
+
+Now, we can add layers and fix some things in following steps.
+
+First, its usually good to scale the y-axis to show the whole range of values (otherwise it looks misleading).
+```{r}
+
+# limits arguemnt is upper and lower bound for y-axis
+p <- p +
+  scale_y_continuous(limits = c(1, 5))
+
+p
+
+```
+
+we can also change the colors. The aes value was assigned to condition. This function can be used to specify specific we might want to use.
+```{r}
+
+p <- p +
+  scale_color_manual(values = c('#FFCB05', '#00274C'))
+
+p
+
+```
+
+and add labels
+```{r}
+p <- p +
+  labs(
+    title = 'Scores by Round Number',
+    y = 'Response Score',
+    x = 'Round Number',
+    color = 'Condition',
+    subtitle = 'Results based on 2 experimental networks',
+    caption = 'Based on limited data')
+
+p
+```
+
+and theres also some themes that are built-in to ggplot2. I often use theme_bw()
+```{r}
+p <- p +
+  theme_bw()
+
+p
+```
+
+
+we can save this plot by running the following lines all at once.
+```{r}
+png('../figures/scores.png', units = 'in', width = 8, height = 6, res = 750)
+p
+dev.off()
+
+
+```
+
+
+## text data
+Just for fun, lets also look at some of the messages that were sent.
+
+```{r}
+# lots of the responses are repeated, so just get the unique entries
+text <- rounds$response %>%
+  unique()
+
+head(text)
+
+
+
+```
+
+a nice overview of text data can be made with a wordcloud
+```{r}
+
+library(tm)
+library(wordcloud)
+
+# convert text to a corpus
+text <- Corpus(VectorSource(text))
+
+# do some basic cleaning of text
+text <- text %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeNumbers) %>%
+  tm_map(tolower) %>%
+  tm_map(removeWords, stopwords('english'))
+
+# create term document matrix
+tdm <- TermDocumentMatrix(text) 
+tdmMatrix <- as.matrix(tdm) 
+words <- sort(rowSums(tdmMatrix), decreasing=TRUE) 
+datMatrix <- data.frame(word = names(words), freq = words)
+
+# print and save wordcloud
+png('../figures/wordcloud.png', units="in", width=6, height=6, res=750)
+wordcloud(
+  words = datMatrix$word,
+  max.words = Inf,
+  freq = datMatrix$freq,
+  min.freq = 1,
+  random.order = FALSE,
+  color = brewer.pal(9, 'Blues')[(5:9)],
+  rot.per=0.15, 
+  scale = c(3.5, 0.1))
+
+dev.off()
+
+
+```
+
+
+
